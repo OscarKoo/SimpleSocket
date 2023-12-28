@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -12,7 +11,7 @@ namespace Dao.SimpleSocket.Tcp
         bool isRunning;
 
         public Action<LogLevel, string> OnLogging { get; set; }
-        public Func<string, Task<string>> OnReceiving { get; set; }
+        public Func<TcpClient, Task> OnReceiving { get; set; }
 
         public void Start(int port)
         {
@@ -51,21 +50,10 @@ namespace Dao.SimpleSocket.Tcp
             try
             {
                 using (client)
-                using (var stream = client.GetStream())
-                using (var sr = new StreamReader(stream))
                 {
-                    var message = await sr.ReadToEndAsync().ConfigureAwait(false);
-                    if (string.IsNullOrWhiteSpace(message))
-                        return;
-
-                    message = message.Trim();
-                    var response = await OnReceiving(message).ConfigureAwait(false);
-
-                    if (string.IsNullOrWhiteSpace(response))
-                        return;
-
-                    using (var sw = new StreamWriter(stream) { AutoFlush = true })
-                        await sw.WriteAsync(response).ConfigureAwait(false);
+                    var onReceiving = OnReceiving;
+                    if (onReceiving != null)
+                        await onReceiving(client).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
